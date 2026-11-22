@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Icon from './Icon';
 import { db } from '../db';
+import { useLogo } from '../logo';
 
 const MENU = [
   { to: '/', nome: 'Painel', icone: 'painel' },
@@ -15,13 +16,14 @@ export default function Layout() {
   const loc = useLocation();
   const nomeLoja = useLiveQuery(async () => (await db.config.get('nomeLoja'))?.valor as string | undefined);
   const baixo = useLiveQuery(() => db.produtos.filter((p) => p.ativo && p.estoque <= p.estoqueMinimo).count(), [], 0);
+  const logo = useLogo();
   const titulo = [...MENU, { to: '/config', nome: 'Configurações' }].find((m) => m.to === loc.pathname)?.nome ?? '';
 
   return (
     <div className="app">
       <aside className="lateral">
         <div className="marca">
-          <img src="./icon-192.png" alt="Mercadinho ML" />
+          <img src={logo} alt={nomeLoja || 'Mercadinho ML'} />
           <div>
             <strong>Mercadinho ML</strong>
             {nomeLoja && <small>{nomeLoja}</small>}
@@ -43,7 +45,7 @@ export default function Layout() {
       </aside>
 
       <header className="topo-mobile">
-        <img src="./icon-192.png" alt="" />
+        <img src={logo} alt="" />
         <strong>{titulo || 'Mercadinho ML'}</strong>
         <NavLink to="/config" className="btn-icone" aria-label="Configurações">
           <Icon name="config" />

@@ -3,6 +3,7 @@ import { db, nomePagamento, type Venda } from '../db';
 import { brl, num, dataHora } from '../utils';
 import { Modal } from './ui';
 import Icon from './Icon';
+import { useLogoPersonalizada } from '../logo';
 
 export default function Recibo({
   venda,
@@ -16,6 +17,7 @@ export default function Recibo({
   acoesExtras?: React.ReactNode;
 }) {
   const nomeLoja = useLiveQuery(async () => ((await db.config.get('nomeLoja'))?.valor as string) || 'Mercadinho ML');
+  const logo = useLogoPersonalizada(); // no comprovante, só aparece se o usuário escolheu uma imagem
 
   return (
     <Modal
@@ -36,6 +38,7 @@ export default function Recibo({
     >
       <div className="recibo" id="area-impressao">
         <div className="centro">
+          {logo && <img src={logo} alt="" className="recibo-logo" />}
           <strong>{nomeLoja}</strong>
           <div className="muted pequeno">Comprovante não fiscal</div>
           <div className="pequeno">Venda #{venda.id} · {dataHora(venda.data)}</div>

@@ -4,6 +4,7 @@ import { salvarArquivo, isoDate } from '../utils';
 import { Campo, useAvisos } from '../components/ui';
 import Icon from '../components/Icon';
 import { useAuth } from '../auth';
+import { CHAVE_LOGO, LOGO_PADRAO, prepararLogo, useLogoPersonalizada } from '../logo';
 
 export default function Config() {
   const { aviso, confirmar } = useAvisos();
@@ -11,11 +12,40 @@ export default function Config() {
   const [nomeLoja, setNomeLoja] = useState('');
   const [ultimoBackup, setUltimoBackup] = useState<number | null>(null);
   const arquivo = useRef<HTMLInputElement>(null);
+  const arquivoLogo = useRef<HTMLInputElement>(null);
+  const logoPersonalizada = useLogoPersonalizada();
+  const [enviandoLogo, setEnviandoLogo] = useState(false);
 
   useEffect(() => {
     getConfig('nomeLoja', '').then(setNomeLoja);
     getConfig<number | null>('ultimoBackup', null).then(setUltimoBackup);
   }, []);
+
+  const trocarLogo = async (f: File) => {
+    setEnviandoLogo(true);
+    try {
+      await setConfig(CHAVE_LOGO, await prepararLogo(f));
+      aviso('Imagem do app atualizada!');
+    } catch (e) {
+      aviso((e as Error).message, 'erro');
+    } finally {
+      setEnviandoLogo(false);
+      if (arquivoLogo.current) arquivoLogo.current.value = '';
+    }
+  };
+
+  const removerLogo = async () => {
+    if (!(await confirmar('Voltar a usar a imagem padrão do Mercadinho ML?'))) return;
+    setEnviandoLogo(true);
+    try {
+      await setConfig(CHAVE_LOGO, null);
+      aviso('Imagem padrão restaurada.');
+    } catch (e) {
+      aviso((e as Error).message, 'erro');
+    } finally {
+      setEnviandoLogo(false);
+    }
+  };
 
   const salvarNome = async () => {
     try {
@@ -89,6 +119,34 @@ export default function Config() {
           <input value={nomeLoja} onChange={(e) => setNomeLoja(e.target.value)} placeholder="Ex.: Mercadinho do Bairro" />
         </Campo>
         <button className="btn btn-primario" onClick={salvarNome}>Salvar</button>
+      </section>
+
+      <section className="painel">
+        <h3>Imagem do app</h3>
+        <p className="muted">
+          Use a logo do seu mercadinho no lugar da imagem padrão. Ela aparece no menu e no comprovante de venda,
+          em todos os aparelhos da sua conta. Imagens retangulares são recortadas no centro, em formato quadrado.
+        </p>
+        <div className="logo-config">
+          <img src={logoPersonalizada || LOGO_PADRAO} alt="Imagem atual do app" className="logo-previa" />
+          <div className="acoes">
+            <button className="btn btn-primario" onClick={() => arquivoLogo.current?.click()} disabled={enviandoLogo}>
+              <Icon name="upload" size={18} /> {enviandoLogo ? 'Enviando…' : logoPersonalizada ? 'Trocar imagem' : 'Escolher imagem'}
+            </button>
+            {logoPersonalizada && (
+              <button className="btn" onClick={removerLogo} disabled={enviandoLogo}>
+                Usar imagem padrão
+              </button>
+            )}
+          </div>
+          <input
+            ref={arquivoLogo}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            hidden
+            onChange={(e) => e.target.files?.[0] && trocarLogo(e.target.files[0])}
+          />
+        </div>
       </section>
 
       <section className="painel">
