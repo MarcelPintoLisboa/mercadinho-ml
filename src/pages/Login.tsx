@@ -23,7 +23,11 @@ export default function Login() {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password: senha });
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password: senha,
+          options: { data: { app: 'Mercadinho ML' } }, // aparece em usuarios.app_cadastro
+        });
         if (error) throw error;
         if (!data.session) {
           setInfo(`Enviamos um link de confirmação para ${email.trim()}. Depois de confirmar, volte aqui e entre.`);
