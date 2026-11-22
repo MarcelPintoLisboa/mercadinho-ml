@@ -263,10 +263,77 @@ jobs:
           path: ${{ matrix.arquivos }}
           if-no-files-found: error
 
+  # ---------------------------------------------------------------- Microsoft Store
+  # Gera o pacote para enviar à Microsoft Store (a Microsoft assina o app: sem aviso do SmartScreen).
+  # Usa os dados de identidade do app reservado no Partner Center, cadastrados como VARIÁVEIS do
+  # repositório (Settings > Secrets and variables > Actions > aba Variables):
+  #   MS_STORE_IDENTITY_NAME            ex.: 12345MLSoftwares.MercadinhoML  (Package/Identity/Name)
+  #   MS_STORE_PUBLISHER                ex.: CN=1A2B3C4D-....               (Package/Identity/Publisher)
+  #   MS_STORE_PUBLISHER_DISPLAY_NAME   ex.: ML Softwares                   (Package/Properties/PublisherDisplayName)
+  #   MS_STORE_APP_NAME                 nome reservado na Loja, ex.: Mercadinho ML
+  # Sem essas variáveis o job é pulado (os demais instaladores continuam sendo gerados).
+  loja-microsoft:
+    name: Microsoft Store (pacote AppX)
+    needs: versao
+    runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false' # a Loja assina o pacote no envio
+      LOJA_IDENTIDADE: ${{ vars.MS_STORE_IDENTITY_NAME }}
+      LOJA_EDITOR: ${{ vars.MS_STORE_PUBLISHER }}
+      LOJA_EDITOR_NOME: ${{ vars.MS_STORE_PUBLISHER_DISPLAY_NAME }}
+      LOJA_NOME_APP: ${{ vars.MS_STORE_APP_NAME }}
+    steps:
+      - name: Conferir dados da Microsoft Store
+        id: dados
+        shell: bash
+        run: |
+          if [ -n "$LOJA_IDENTIDADE" ] && [ -n "$LOJA_EDITOR" ] && [ -n "$LOJA_EDITOR_NOME" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Pacote da Microsoft Store não gerado: cadastre as variáveis MS_STORE_* do repositório (veja docs/MICROSOFT-STORE.md)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.dados.outputs.ok == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.dados.outputs.ok == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Gerar pacote da Loja
+        if: steps.dados.outputs.ok == 'true'
+        shell: bash
+        env:
+          VERSAO: ${{ needs.versao.outputs.nome }}
+        run: |
+          npm ci
+          npm version "$VERSAO" --no-git-tag-version --allow-same-version
+          npm run build
+          npx electron-builder --win appx --publish never \
+            -c.appx.identityName="$LOJA_IDENTIDADE" \
+            -c.appx.publisher="$LOJA_EDITOR" \
+            -c.appx.publisherDisplayName="$LOJA_EDITOR_NOME" \
+            -c.appx.displayName="${LOJA_NOME_APP:-Mercadinho ML}" \
+            -c.appx.applicationId=MercadinhoML \
+            -c.appx.backgroundColor="#1f9d55" \
+            -c.appx.languages=pt-BR \
+            '-c.appx.artifactName=Mercadinho-ML-${version}-Microsoft-Store.${ext}'
+          ls -la release/*.appx
+
+      - uses: actions/upload-artifact@v4
+        if: steps.dados.outputs.ok == 'true'
+        with:
+          name: loja-microsoft
+          path: release/*.appx
+          if-no-files-found: error
+
   # ---------------------------------------------------------------- Release
   release:
     name: Publicar Release
-    needs: [versao, android, ios, desktop]
+    needs: [versao, android, ios, desktop, loja-microsoft]
     if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     permissions:
@@ -294,5 +361,6 @@ jobs:
             | Android | `Mercadinho-ML-*.apk` |
             | Android (Google Play) | `Mercadinho-ML-*.aab` |
             | iPhone / iPad | `Mercadinho-ML-*.ipa` |
+            | Microsoft Store (só para enviar no Partner Center, não instala direto) | `Mercadinho-ML-*-Microsoft-Store.appx` |
 
             > Faça backup dos dados (Configurações → Fazer backup) antes de atualizar.
