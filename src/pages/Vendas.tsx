@@ -56,9 +56,13 @@ export default function Vendas() {
 
   const cancelar = async (v: Venda) => {
     if (!(await confirmar(`Cancelar a venda #${v.id} de ${brl(v.total)}? Os produtos voltarão para o estoque.`))) return;
-    await cancelarVenda(v.id!);
-    aviso('Venda cancelada e estoque devolvido.');
-    setAberta(null);
+    try {
+      await cancelarVenda(v.id!);
+      aviso('Venda cancelada e estoque devolvido.');
+      setAberta(null);
+    } catch (e) {
+      aviso((e as Error).message, 'erro');
+    }
   };
 
   return (

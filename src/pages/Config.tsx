@@ -3,9 +3,11 @@ import { exportarBackup, importarBackup, apagarTudo, getConfig, setConfig, salva
 import { salvarArquivo, isoDate } from '../utils';
 import { Campo, useAvisos } from '../components/ui';
 import Icon from '../components/Icon';
+import { useAuth } from '../auth';
 
 export default function Config() {
   const { aviso, confirmar } = useAvisos();
+  const { user, sair } = useAuth();
   const [nomeLoja, setNomeLoja] = useState('');
   const [ultimoBackup, setUltimoBackup] = useState<number | null>(null);
   const arquivo = useRef<HTMLInputElement>(null);
@@ -16,8 +18,12 @@ export default function Config() {
   }, []);
 
   const salvarNome = async () => {
-    await setConfig('nomeLoja', nomeLoja.trim());
-    aviso('Nome salvo!');
+    try {
+      await setConfig('nomeLoja', nomeLoja.trim());
+      aviso('Nome salvo!');
+    } catch (e) {
+      aviso((e as Error).message, 'erro');
+    }
   };
 
   const backup = async () => {
@@ -62,10 +68,15 @@ export default function Config() {
       ['Sabão em Pó 800g', '7890000000097', 'Limpeza', 9.9, 14.5, 10, 4],
       ['Papel Higiênico 4un', '7890000000103', 'Higiene', 4.5, 6.99, 3, 6],
     ];
+    let ok = 0;
+    let ultimoErro = '';
     for (const [nome, codigo, categoria, custo, preco, estoque, min] of itens) {
-      await salvarProduto({ nome, codigo, categoria, unidade: nome.includes('(kg)') ? 'kg' : 'un', custo, preco, estoque, estoqueMinimo: min, ativo: true }).catch(() => undefined);
+      await salvarProduto({ nome, codigo, categoria, unidade: nome.includes('(kg)') ? 'kg' : 'un', custo, preco, estoque, estoqueMinimo: min, ativo: true })
+        .then(() => ok++)
+        .catch((e: Error) => { ultimoErro = e.message; });
     }
-    aviso('Produtos de exemplo adicionados!');
+    if (ok) aviso(`${ok} produtos de exemplo adicionados!`);
+    else aviso(ultimoErro || 'Nenhum produto adicionado.', 'erro');
   };
 
   return (
@@ -83,8 +94,8 @@ export default function Config() {
       <section className="painel">
         <h3>Backup dos dados</h3>
         <p className="muted">
-          Seus dados ficam guardados neste aparelho. Faça backup com frequência e guarde o arquivo em local seguro
-          (Google Drive, e-mail, WhatsApp). Use o mesmo arquivo para passar os dados para outro aparelho ou computador.
+          Seus dados ficam salvos na nuvem, na sua conta: entre com o mesmo e-mail em outro aparelho para ver tudo.
+          O backup é uma cópia extra em arquivo (guarde no Google Drive, e-mail ou WhatsApp).
         </p>
         <p className="pequeno">
           Último backup: <strong>{ultimoBackup ? new Date(ultimoBackup).toLocaleString('pt-BR') : 'nunca'}</strong>
@@ -105,12 +116,31 @@ export default function Config() {
             onClick={async () => {
               if (!(await confirmar('Apagar TODOS os produtos, vendas e configurações? Essa ação não pode ser desfeita.'))) return;
               if (!(await confirmar('Tem certeza absoluta? Recomendamos fazer um backup antes.'))) return;
-              await apagarTudo();
-              setNomeLoja('');
-              aviso('Todos os dados foram apagados.');
+              try {
+                await apagarTudo();
+                setNomeLoja('');
+                aviso('Todos os dados foram apagados.');
+              } catch (e) {
+                aviso((e as Error).message, 'erro');
+              }
             }}
           >
             <Icon name="delete" size={18} /> Apagar todos os dados
+          </button>
+        </div>
+      </section>
+
+      <section className="painel">
+        <h3>Conta</h3>
+        <p className="muted">Conectado como <strong>{user?.email}</strong></p>
+        <div className="acoes">
+          <button
+            className="btn btn-perigo"
+            onClick={async () => {
+              if (await confirmar('Sair da conta? Seus dados continuam salvos na nuvem.')) await sair();
+            }}
+          >
+            Sair da conta
           </button>
         </div>
       </section>

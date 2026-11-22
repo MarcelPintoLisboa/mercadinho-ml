@@ -158,8 +158,12 @@ export default function Produtos() {
                         title="Excluir"
                         onClick={async () => {
                           if (await confirmar(`Excluir o produto "${p.nome}"? O histórico de vendas será mantido.`)) {
-                            await excluirProduto(p.id!);
-                            aviso('Produto excluído.');
+                            try {
+                              await excluirProduto(p.id!);
+                              aviso('Produto excluído.');
+                            } catch (e) {
+                              aviso((e as Error).message, 'erro');
+                            }
                           }
                         }}
                       >

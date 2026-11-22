@@ -4,6 +4,7 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 import './styles.css';
 import Layout from './components/Layout';
 import { AvisosProvider } from './components/ui';
+import { Portao } from './auth';
 import Painel from './pages/Painel';
 import Vender from './pages/Vender';
 import Produtos from './pages/Produtos';
@@ -14,6 +15,7 @@ import Config from './pages/Config';
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AvisosProvider>
+      <Portao>
       <HashRouter>
         <Routes>
           <Route element={<Layout />}>
@@ -26,6 +28,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           </Route>
         </Routes>
       </HashRouter>
+      </Portao>
     </AvisosProvider>
   </React.StrictMode>,
 );
